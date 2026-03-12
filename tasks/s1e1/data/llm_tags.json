@@ -1,0 +1,188 @@
+[
+  {
+    "id": 0,
+    "tags": [
+      "education"
+    ]
+  },
+  {
+    "id": 1,
+    "tags": [
+      "manual_labor"
+    ]
+  },
+  {
+    "id": 2,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": 3,
+    "tags": [
+      "manual_labor"
+    ]
+  },
+  {
+    "id": 4,
+    "tags": [
+      "manual_labor"
+    ]
+  },
+  {
+    "id": 5,
+    "tags": [
+      "manual_labor"
+    ]
+  },
+  {
+    "id": 6,
+    "tags": [
+      "manual_labor"
+    ]
+  },
+  {
+    "id": 7,
+    "tags": [
+      "education"
+    ]
+  },
+  {
+    "id": 8,
+    "tags": [
+      "transport",
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 9,
+    "tags": [
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 10,
+    "tags": [
+      "education"
+    ]
+  },
+  {
+    "id": 11,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": 12,
+    "tags": [
+      "education"
+    ]
+  },
+  {
+    "id": 13,
+    "tags": [
+      "education"
+    ]
+  },
+  {
+    "id": 14,
+    "tags": [
+      "it"
+    ]
+  },
+  {
+    "id": 15,
+    "tags": [
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 16,
+    "tags": [
+      "healthcare",
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 17,
+    "tags": [
+      "healthcare"
+    ]
+  },
+  {
+    "id": 18,
+    "tags": [
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 19,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": 20,
+    "tags": [
+      "education",
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 21,
+    "tags": [
+      "manual_labor"
+    ]
+  },
+  {
+    "id": 22,
+    "tags": [
+      "healthcare",
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 23,
+    "tags": [
+      "healthcare",
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 24,
+    "tags": [
+      "healthcare"
+    ]
+  },
+  {
+    "id": 25,
+    "tags": [
+      "manual_labor"
+    ]
+  },
+  {
+    "id": 26,
+    "tags": [
+      "education",
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 27,
+    "tags": [
+      "it"
+    ]
+  },
+  {
+    "id": 28,
+    "tags": [
+      "working_with_people"
+    ]
+  },
+  {
+    "id": 29,
+    "tags": [
+      "manual_labor"
+    ]
+  }
+]

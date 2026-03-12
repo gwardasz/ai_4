@@ -1,0 +1,39 @@
+### Pobieranie lokalizacji dla podejrzanego
+POST https://hub.ag3nts.org/api/location
+Content-Type: application/json
+
+{
+  "apikey": "{{$dotenv AI_DEVS_API_KEY}}",
+  "name": "Jacek",
+  "surname": "Nowak"
+}
+
+### Odpowidź ma format:
+# [
+#   {
+#     "latitude": 50.232,
+#     "longitude": 19.152
+#   },
+#   ... 
+# ]
+
+
+### Pobieranie uprawnień dla podejrzanego
+POST https://hub.ag3nts.org/api/accesslevel
+Content-Type: application/json
+
+{
+  "apikey": "{{$dotenv AI_DEVS_API_KEY}}",
+  "name": "Jacek",
+  "surname": "Nowak",
+  "birthYear": 1991
+}
+
+### Odpowidź ma format:
+# {
+#   "name": "Jacek",
+#   "surname": "Nowak",
+#   "accessLevel": 1
+# }
+
+
