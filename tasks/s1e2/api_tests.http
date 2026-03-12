@@ -28,6 +28,25 @@ Content-Type: application/json
   "surname": "Nowak",
   "birthYear": 1991
 }
+###
+POST https://hub.ag3nts.org/api/accesslevel
+Content-Type: application/json
+
+{
+  "apikey": "{{$dotenv AI_DEVS_API_KEY}}",
+  "name": "Cezary",
+  "surname": "Żurek",
+  "birthYear": 1987
+}
+
+###
+GET https://nominatim.openstreetmap.org/search?q=Nowy+Sącz&format=json
+
+
+
+    
+
+    
 
 ### Odpowidź ma format:
 # {
