@@ -1,1 +1,4 @@
 .env
+
+# Dane runtime sesji proxy (s1e3)
+tasks/s1e3/sessions/*.json
