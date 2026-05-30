@@ -3,5 +3,8 @@
 # Dane runtime sesji proxy (s1e3)
 tasks/s1e3/sessions/*.json
 
+# Logi proxy (s1e3)
+tasks/s1e3/logs/
+
 # Lokalne skrypty tunelujace (zawieraja prywatne adresy/porty)
 tunnel.bat

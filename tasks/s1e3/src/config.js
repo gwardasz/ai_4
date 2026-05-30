@@ -4,6 +4,7 @@ import { resolveModelForProvider } from "../../../config.js";
 
 export const PORT = Number(process.env.PORT ?? 3000);
 export const MAX_TOOL_ROUNDS = 5;
+export const LOG_LEVEL = process.env.LOG_LEVEL ?? "info";
 
 // Kod elektrowni w Zarnowcu - prawdziwy cel przekierowania paczek z czesciami reaktora.
 export const ZARNOWIEC_CODE = "PWR6132PL";

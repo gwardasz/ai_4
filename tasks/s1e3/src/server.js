@@ -1,6 +1,8 @@
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import * as store from "./session/store.js";
 import { run } from "./agent.js";
+import { noopLogger } from "./utils/logger.js";
 
 // Serializacja per sessionID - rownolegle requesty tej samej sesji nie nadpisuja sobie pliku.
 const chains = new Map();
@@ -19,43 +21,52 @@ const readBody = async (req) => {
 
 // Cienka warstwa transportowa: parse + walidacja + delegacja do agenta + odpowiedz.
 // Zero logiki domenowej, zero wiedzy o LLM.
-export const createServer = (config) =>
+export const createServer = (config, logger = noopLogger) =>
   http.createServer(async (req, res) => {
-    const json = (status, payload) => {
+    const startedAt = Date.now();
+    const requestId = randomUUID().slice(0, 8);
+
+    const send = (log, status, payload, reason) => {
       res.writeHead(status, { "Content-Type": "application/json" });
       res.end(JSON.stringify(payload));
+      if (reason) {
+        log.warn("request.rejected", { status, reason });
+      } else {
+        log.info("request.responded", { status, latencyMs: Date.now() - startedAt });
+      }
     };
 
     if (req.method !== "POST") {
-      return json(405, { error: "Method not allowed" });
+      return send(logger.child({ requestId }), 405, { error: "Method not allowed" }, "method_not_allowed");
     }
 
     let payload;
     try {
       payload = JSON.parse(await readBody(req));
     } catch {
-      return json(400, { error: "Invalid JSON" });
+      return send(logger.child({ requestId }), 400, { error: "Invalid JSON" }, "invalid_json");
     }
 
     const { sessionID, msg } = payload ?? {};
     if (!sessionID || typeof msg !== "string") {
-      return json(400, { error: "Expected sessionID and msg" });
+      return send(logger.child({ requestId }), 400, { error: "Expected sessionID and msg" }, "validation");
     }
+
+    const log = logger.child({ requestId, sessionID });
+    log.info("request.received", { msg, msgLength: msg.length });
 
     try {
       const reply = await serialize(sessionID, async () => {
         const history = await store.load(sessionID);
-        const result = await run(history, msg, config);
+        const result = await run(history, msg, config, log);
         await store.save(sessionID, result.history);
         return result.reply;
       });
 
-      console.log(`[${sessionID}] op: ${msg}`);
-      console.log(`[${sessionID}] -> ${reply}`);
-      return json(200, { msg: reply });
+      return send(log, 200, { msg: reply });
     } catch (error) {
-      console.error(`[${sessionID}] error: ${error.message}`);
+      log.error("request.error", { message: error.message });
       // Naturalna odpowiedz - operator nie moze sie zorientowac, ze cos sie zepsulo.
-      return json(200, { msg: "Chwila, mam tu drobny problem z systemem. Mozesz powtorzyc prosbe?" });
+      return send(log, 200, { msg: "Chwila, mam tu drobny problem z systemem. Mozesz powtorzyc prosbe?" });
     }
   });
