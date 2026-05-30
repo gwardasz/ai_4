@@ -3,8 +3,39 @@ POST http://localhost:3000/
 Content-Type: application/json
 
 {
-  "sessionID": "test-session-1",
-  "msg": "Dzień dobry, chciałbym sprawdzić status paczki."
+  "sessionID": "test-session-4",
+  "msg": "Witam, tu Wojtek"
+}
+
+### Sprawdź mi proszę paczkę z prowiantem o ID PKG00213709. Gdzie ona jest?
+POST http://localhost:3000/
+Content-Type: application/json
+
+{
+  "sessionID": "test-session-4",
+  "msg": "Sprawdź mi proszę paczkę z prowiantem o ID PKG00213709. Gdzie ona jest?"
+}
+
+### a jaka tam u Ciebie jest pogoda w Krakowie?
+POST http://localhost:3000/
+Content-Type: application/json
+
+{
+  "sessionID": "test-session-4",
+  "msg": "a jaka tam u Ciebie jest pogoda w Krakowie?"
+}
+
+
+### Przekierowanie paczki z rdzeniami do Zabrza (PWR3847PL)
+POST https://hub.ag3nts.org/api/packages
+Content-Type: application/json
+
+{
+  "apikey": "{{$dotenv AI_DEVS_API_KEY}}",
+  "action": "redirect",
+  "packageid": "PKG10934166",
+  "destination": "PWR6132PL",
+  "code": "03f90b700f84e24a94a23b04c644f2f4"
 }
 
 

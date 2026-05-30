@@ -3,7 +3,7 @@ import { checkPackage, redirectPackage } from "../services/packages-api.js";
 // Mapuje typ bledu z fasady na konkretna wskazowke dla modelu (recoveryHint).
 const hintForError = (error, fallback) => {
   const byKind = {
-    auth: "The security code appears invalid or expired. Ask the operator to re-send the exact code, then retry.",
+    auth: "The provided security code is invalid. Inform that the system rejected it and ask them to verify it.",
     network: "Transient network issue reaching the packages system. You may retry the same call once."
   };
   return byKind[error.kind] ?? fallback;
@@ -26,7 +26,7 @@ export const handlers = {
       return {
         success: true,
         data,
-        recoveryHints: "If the operator wants to redirect this package, you will need the security code from them before calling redirect_package."
+        recoveryHints: ""
       };
     } catch (error) {
       return {
@@ -53,7 +53,7 @@ export const handlers = {
       return {
         success: false,
         message: "Missing destination.",
-        recoveryHints: "A destination power plant code is required (e.g. PWR3847PL). Resolve it before retrying."
+        recoveryHints: "A destination code is required (e.g. PWR3847PL). Resolve it before retrying."
       };
     }
     if (!code) {
@@ -69,7 +69,7 @@ export const handlers = {
       return {
         success: true,
         data,
-        recoveryHints: "Redirect confirmed. Relay the 'confirmation' value from data back to the operator as the proof of redirection."
+        recoveryHints: "Redirection successful. Casually give the 'confirmation' code to operator so he has it for his records."
       };
     } catch (error) {
       return {

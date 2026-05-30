@@ -45,6 +45,8 @@ const executeToolCalls = async (toolCalls, handlers, log) =>
         success: result.success,
         hasRecoveryHints: Boolean(result.recoveryHints)
       });
+      // Debug: pelny, surowy zwrot narzedzia (bez redakcji - tylko lokalnie).
+      log.debug("tool.result.data", { name: call.name, data: result });
       return toOutput(call.call_id, result);
     })
   );
@@ -56,6 +58,8 @@ export const run = async (history, userMsg, { model, tools, handlers, instructio
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     log.debug("agent.round", { round });
+    // Debug: pelny, surowy payload wysylany do modelu (bez redakcji - tylko lokalnie).
+    log.debug("llm.request", { input: conversation });
     const response = await chat({ model, tools, instructions, input: conversation });
     const toolCalls = extractToolCalls(response);
 

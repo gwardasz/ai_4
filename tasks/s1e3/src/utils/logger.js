@@ -30,23 +30,42 @@ const summarize = (data) =>
     })
     .join(" ");
 
-const buildLogger = ({ level, dir, context, file }) => {
+// Widok konwersacji - tylko zapytanie operatora i tekstowa odpowiedz modelu (pelny tekst, bez skracania).
+const CONVERSATION_VIEW = {
+  "request.received": (data) => ({ who: "operator", text: data.msg }),
+  "agent.reply": (data) => ({ who: "model", text: data.reply })
+};
+
+// consoleMode: "all" (domyslnie) - pelne logi na konsoli wg poziomu.
+//              "conversation" - na konsoli tylko zapytanie + odpowiedz modelu.
+const buildLogger = ({ level, dir, context, consoleMode }) => {
   const threshold = LEVELS[level] ?? LEVELS.info;
 
   const emit = (lvl, event, data = {}) => {
-    if (LEVELS[lvl] < threshold) return;
-
+    const passesLevel = LEVELS[lvl] >= threshold;
     const now = new Date();
-    const record = { ts: now.toISOString(), level: lvl, event, ...context, ...data };
 
-    const tag = [context.requestId, context.sessionID].filter(Boolean).join("/");
-    const prefix = `${clock(now)} ${lvl.toUpperCase().padEnd(5)} ${tag ? `[${tag}] ` : ""}`;
-    const summary = summarize(data);
-    const line = `${prefix}${event}${summary ? ` ${summary}` : ""}`;
-    (lvl === "error" ? console.error : console.log)(line);
+    // --- Konsola ---
+    if (consoleMode === "conversation") {
+      const view = CONVERSATION_VIEW[event];
+      if (view) {
+        const { who, text } = view(data);
+        const tag = context.sessionID ? `[${context.sessionID}] ` : "";
+        console.log(`${clock(now)} ${tag}${who}: ${text}`);
+      }
+    } else if (passesLevel) {
+      const tag = [context.requestId, context.sessionID].filter(Boolean).join("/");
+      const prefix = `${clock(now)} ${lvl.toUpperCase().padEnd(5)} ${tag ? `[${tag}] ` : ""}`;
+      const summary = summarize(data);
+      const line = `${prefix}${event}${summary ? ` ${summary}` : ""}`;
+      (lvl === "error" ? console.error : console.log)(line);
+    }
 
-    // Zapis do pliku jest asynchroniczny i nie moze wywrocic obslugi zadania.
-    appendFile(join(dir, `${dayStamp(now)}.jsonl`), `${JSON.stringify(record)}\n`, () => {});
+    // --- Plik (bez zmian: sterowany poziomem, zapis async i odporny na bledy) ---
+    if (passesLevel) {
+      const record = { ts: now.toISOString(), level: lvl, event, ...context, ...data };
+      appendFile(join(dir, `${dayStamp(now)}.jsonl`), `${JSON.stringify(record)}\n`, () => {});
+    }
   };
 
   return {
@@ -54,14 +73,14 @@ const buildLogger = ({ level, dir, context, file }) => {
     info: (event, data) => emit("info", event, data),
     warn: (event, data) => emit("warn", event, data),
     error: (event, data) => emit("error", event, data),
-    child: (extra) => buildLogger({ level, dir, file, context: { ...context, ...extra } })
+    child: (extra) => buildLogger({ level, dir, consoleMode, context: { ...context, ...extra } })
   };
 };
 
-export const createLogger = ({ level = "info", dir = DEFAULT_DIR } = {}) => {
+export const createLogger = ({ level = "info", dir = DEFAULT_DIR, consoleMode = "all" } = {}) => {
   // Jawne utworzenie katalogu - NIE jako side-effect importu.
   mkdirSync(dir, { recursive: true });
-  return buildLogger({ level, dir, context: {} });
+  return buildLogger({ level, dir, consoleMode, context: {} });
 };
 
 // Logger zerowy - domyslny w agencie, by dzialal bez wstrzyknietego loggera (testy, tryb standalone).
