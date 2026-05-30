@@ -1,0 +1,18 @@
+### Lokalny proxy (po uruchomieniu: node app.js)
+POST http://localhost:3000/
+Content-Type: application/json
+
+{
+  "sessionID": "test-session-1",
+  "msg": "Dzień dobry, chciałbym sprawdzić status paczki."
+}
+
+
+### Test przez publiczny tunel Azyl
+POST https://azyl-57725.ag3nts.org/
+Content-Type: application/json
+
+{
+  "sessionID": "test-session-1",
+  "msg": "Dzień dobry, czy publiczny tunel działa?"
+}
