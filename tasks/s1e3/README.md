@@ -38,10 +38,10 @@ Zadanie: publiczny endpoint HTTP jako inteligentny proxy-asystent z pamięcią k
 
 `POST https://hub.ag3nts.org/verify` — task: `proxy`, answer: `{ url, sessionID }`
 
-Uruchom: `node submit.js` (po ustawieniu `PUBLIC_URL` w `.env` lub jako argument).
+Adres publiczny trzymamy w `.env` jako `PUBLIC_URL` (poza repo). `submit.js` go stamtąd czyta; można też podać argumentem CLI.
 
 ## Kroki
 
-1. `node app.js` — serwer lokalny (domyślnie port 3000)
-2. Tunel publiczny (ngrok / pinggy / Azyl / VPS)
-3. `node submit.js <public-url>`
+1. `node app.js` — serwer lokalny (port 3000)
+2. uruchom lokalny skrypt tunelujący (zdalny port → `localhost:3000`)
+3. `node submit.js` — zgłoszenie (adres z `PUBLIC_URL` lub `node submit.js <url>`)

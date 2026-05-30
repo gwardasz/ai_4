@@ -1,5 +1,7 @@
 import { AI_DEVS_API_KEY } from "../../config.js";
 
+// Adres publiczny czytamy z .env (PUBLIC_URL) - nie trzymamy go w repo.
+// Mozna nadpisac argumentem CLI.
 const publicUrl = process.argv[2] ?? process.env.PUBLIC_URL;
 const sessionID = process.argv[3] ?? `s1e3-${Date.now()}`;
 
@@ -9,8 +11,7 @@ if (!AI_DEVS_API_KEY) {
 }
 
 if (!publicUrl) {
-  console.error("Użycie: node submit.js <public-url> [sessionID]");
-  console.error("Lub ustaw PUBLIC_URL w .env");
+  console.error("Brak adresu. Ustaw PUBLIC_URL w .env lub podaj: node submit.js <public-url> [sessionID]");
   process.exit(1);
 }
 
