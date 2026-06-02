@@ -1,0 +1,6 @@
+# Pobrana dokumentacja i pliki robocze agenta
+workspace/*
+!workspace/.gitkeep
+
+# Logi przebiegu agenta
+logs/
