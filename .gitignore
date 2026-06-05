@@ -8,3 +8,6 @@ tasks/s1e3/logs/
 
 # Lokalne skrypty tunelujace (zawieraja prywatne adresy/porty)
 tunnel.bat
+
+# Node modules
+node_modules/
