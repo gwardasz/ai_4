@@ -1,0 +1,60 @@
+{
+  "1x1": {
+    "connections": [
+      "E",
+      "S"
+    ]
+  },
+  "1x2": {
+    "connections": [
+      "E",
+      "S",
+      "W"
+    ]
+  },
+  "1x3": {
+    "connections": [
+      "E",
+      "W"
+    ]
+  },
+  "2x1": {
+    "connections": [
+      "N",
+      "S"
+    ]
+  },
+  "2x2": {
+    "connections": [
+      "E",
+      "N",
+      "S"
+    ]
+  },
+  "2x3": {
+    "connections": [
+      "E",
+      "S",
+      "W"
+    ]
+  },
+  "3x1": {
+    "connections": [
+      "E",
+      "N",
+      "W"
+    ]
+  },
+  "3x2": {
+    "connections": [
+      "E",
+      "N"
+    ]
+  },
+  "3x3": {
+    "connections": [
+      "E",
+      "N"
+    ]
+  }
+}

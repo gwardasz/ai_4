@@ -22,7 +22,8 @@ const isContinue = (answer) => {
 
 /** @returns {Promise<boolean>} true = continue, false = abort */
 export const promptCheckpoint = async ({ stage, title, body = "" }) => {
-  console.log(`\n[${stage}/2] ${title}\n`);
+  const prefix = stage !== undefined ? `[${stage}/2] ` : "";
+  console.log(`\n${prefix}${title}\n`);
   if (body) console.log(`${body}\n`);
   console.log("[C]ontinue  |  [A]bort");
 

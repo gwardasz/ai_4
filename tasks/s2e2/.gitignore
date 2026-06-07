@@ -1,3 +1,4 @@
 logs/
 workspace/*.png
+workspace/preprocess-*/
 reference/solved.png
