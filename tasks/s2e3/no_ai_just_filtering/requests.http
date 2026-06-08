@@ -1,0 +1,1 @@
+GET {{$dotenv HUB_BASE_URL}}/data/{{$dotenv AI_DEVS_API_KEY}}/failure.log
