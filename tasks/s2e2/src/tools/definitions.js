@@ -30,7 +30,7 @@ export const tools = [
     type: "function",
     name: "rotate_tile",
     description:
-      "Rotate one tile 90 degrees clockwise. Each quarter-turn costs one hub API call. " +
+      "Rotate one tile 90 degrees clockwise." +
       "Pass times (1-3) to rotate multiple quarter-turns in one tool call.",
     parameters: {
       type: "object",
