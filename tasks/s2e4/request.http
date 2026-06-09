@@ -1,0 +1,77 @@
+@hub = {{$dotenv HUB_BASE_URL}}
+@apikey = {{$dotenv AI_DEVS_API_KEY}}
+
+### help — API documentation
+POST {{hub}}/api/zmail
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "action": "help",
+  "page": 1
+}
+
+### search — messages matching query (returns metadata in items[])
+POST {{hub}}/api/zmail
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "action": "search",
+  "query": "from:security@system.nwo",
+  "page": 1,
+  "perPage": 10
+}
+
+### search — empty result set
+POST {{hub}}/api/zmail
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "action": "search",
+  "query": "subject:\"__no_such_mail_xyz__\"",
+  "page": 1,
+  "perPage": 10
+}
+
+### getMessages — by messageID (32-char hash)
+POST {{hub}}/api/zmail
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "action": "getMessages",
+  "ids": "6624add090a5cb06f5c192653b5a243c"
+}
+
+### getMessages — by rowID (numeric)
+POST {{hub}}/api/zmail
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "action": "getMessages",
+  "ids": 94
+}
+
+### getInbox
+POST {{hub}}/api/zmail
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "action": "getInbox",
+  "page": 1,
+  "perPage": 10
+}
+
+### getThread
+POST {{hub}}/api/zmail
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "action": "getThread",
+  "threadID": 62044
+}

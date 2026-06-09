@@ -5,12 +5,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run test:s2e4",
+    "test:s2e4": "node --test tasks/s2e4/test/**/*.test.js",
+    "probe:zmail": "node tasks/s2e4/scripts/probe-zmail.mjs",
+    "s2e4": "node tasks/s2e4/app.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "gray-matter": "^4.0.3",
     "js-tiktoken": "^1.0.21",
     "sharp": "^0.34.5"
   }

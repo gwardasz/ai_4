@@ -1,0 +1,7 @@
+logs/
+workspace/runs/
+workspace/state/
+workspace/mails/
+workspace/messages/
+workspace/docs/
+test/fixtures/zmail/
