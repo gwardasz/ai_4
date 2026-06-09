@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import matter from "gray-matter";
+import { resolveModelForProvider } from "../../../../config.js";
 import { AGENTS_ROOT, orchestratorModel, specialistModel } from "../config.js";
 
 export const loadAgent = async (name) => {
@@ -12,7 +13,7 @@ export const loadAgent = async (name) => {
 
   return {
     name: data.name ?? name,
-    model: data.model ? data.model.replace(/^openai:/, "") : defaultModel,
+    model: resolveModelForProvider(data.model ? String(data.model) : defaultModel),
     tools: Array.isArray(data.tools) ? data.tools : [],
     systemPrompt: content.trim()
   };

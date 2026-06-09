@@ -9,16 +9,12 @@ import {
   loadProgress,
   saveProgress,
   fingerprintProgress,
-  updateProgressFromVerify,
   progressFieldStatus
 } from "./src/state/progress.js";
-import {
-  submitVerify,
-  hasAllFields,
-  missingFields
-} from "./src/services/verify-api.js";
+import { missingFields } from "./src/services/verify-api.js";
 import { runOrchestratorCycle } from "./src/agent/runner.js";
 import { parseMissionFromArgv, initRun } from "./src/mission.js";
+import { processPendingApprovals } from "./src/user-approval.js";
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
@@ -26,6 +22,7 @@ const { text: missionText, fresh } = parseMissionFromArgv();
 const mission = await initRun({ text: missionText, fresh });
 
 const logger = createLogger({ level: LOG_LEVEL, consoleMode: LOG_CONSOLE });
+const autoApproveLeads = process.env.AUTO_APPROVE_LEADS === "true";
 
 console.log("\n========================================");
 console.log("  S2E4 Mailbox — Multi-Agent System");
@@ -50,24 +47,27 @@ while (!flag && cycle < MAX_CYCLES) {
     filled: progressFieldStatus(progress, mission.fields)
   });
 
-  if (hasAllFields(progress, mission.fields)) {
-    logger.info("cycle.verify", { cycle });
-    const verify = await submitVerify(progress, mission.fields, logger);
-    await updateProgressFromVerify(verify);
-
-    if (verify.flag) {
-      flag = verify.flag;
-      logger.info("cycle.flag", { flag, cycle });
-      break;
-    }
-  }
-
   const fpBefore = fingerprintProgress(progress, mission.fields);
 
   try {
-    await runOrchestratorCycle(progress, mission, { log: logger.child({ cycle }), cycle });
+    const result = await runOrchestratorCycle(progress, mission, { log: logger.child({ cycle }), cycle });
+    if (result?.flag) {
+      flag = result.flag;
+      logger.info("cycle.flag", { flag, cycle });
+    }
   } catch (err) {
     logger.error("cycle.error", { cycle, message: err.message });
+  }
+
+  if (flag) break;
+
+  const approval = await processPendingApprovals({
+    log: logger,
+    autoApprove: autoApproveLeads
+  });
+  if (approval.quit) {
+    console.error("\nStopped — user quit during lead approval.\n");
+    process.exit(1);
   }
 
   const progressAfter = await loadProgress();
@@ -84,8 +84,6 @@ while (!flag && cycle < MAX_CYCLES) {
     staleCycles = 0;
   }
   lastFingerprint = fpAfter;
-
-  if (flag) break;
 
   logger.info("cycle.sleep", { ms: CYCLE_SLEEP_MS, cycle });
   await sleep(CYCLE_SLEEP_MS);

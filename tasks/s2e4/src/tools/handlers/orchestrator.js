@@ -1,6 +1,8 @@
-import { mergeProgress, isMetaKey } from "../../state/progress.js";
+import { mergeProgress, isMetaKey, loadProgress, updateProgressFromVerify } from "../../state/progress.js";
 import { getMission } from "../../mission.js";
 import { resumeSession, getDeferredSessions } from "../../agent/sessions.js";
+import { addProposal } from "../../state/leads.js";
+import { submitVerify, hasAllFields, missingFields } from "../../services/verify-api.js";
 
 const buildResult = ({ success, message, ...rest }) => {
   const payload = { success, ...rest };
@@ -8,7 +10,7 @@ const buildResult = ({ success, message, ...rest }) => {
   return payload;
 };
 
-export const createOrchestratorHandlers = (log) => ({
+export const createOrchestratorHandlers = (log, { cycle = 0 } = {}) => ({
   async write_progress(args) {
     const { fields } = getMission();
     const updates = {};
@@ -39,6 +41,69 @@ export const createOrchestratorHandlers = (log) => ({
       const updatedFields = Object.keys(updates).filter((key) => !isMetaKey(key));
       log.info("progress.updated", { fields: updatedFields });
       return buildResult({ success: true, progress, message: "Progress updated." });
+    } catch (err) {
+      return buildResult({ success: false, message: err.message });
+    }
+  },
+
+  async propose_search({ leadId, query, rationale }) {
+    if (!leadId || !query?.trim() || !rationale?.trim()) {
+      return buildResult({ success: false, message: "leadId, query, and rationale are required." });
+    }
+
+    try {
+      const { proposal, created } = await addProposal({ leadId, query, rationale, cycle });
+      log.info("proposal.created", { proposalId: proposal.id, leadId, query, created });
+      return buildResult({
+        success: true,
+        proposalId: proposal.id,
+        created,
+        proposal,
+        message: created
+          ? "Search proposal submitted — awaiting user approval."
+          : "Proposal already exists for this lead and query."
+      });
+    } catch (err) {
+      return buildResult({ success: false, message: err.message });
+    }
+  },
+
+  async submit_verify() {
+    const mission = getMission();
+    const progress = await loadProgress();
+    const missing = missingFields(progress, mission.fields);
+
+    if (!hasAllFields(progress, mission.fields)) {
+      return buildResult({
+        success: false,
+        message: `Cannot verify — missing fields: ${missing.join(", ")}.`,
+        missing
+      });
+    }
+
+    try {
+      const verify = await submitVerify(progress, mission.fields, log);
+      const updated = await updateProgressFromVerify(verify);
+      const feedback = verify.data ?? verify.raw ?? null;
+
+      log.info("verify.submitted", {
+        ok: verify.ok,
+        hasFlag: Boolean(verify.flag),
+        status: verify.status
+      });
+
+      return buildResult({
+        success: true,
+        ok: verify.ok,
+        status: verify.status,
+        flag: verify.flag ?? null,
+        hasFlag: Boolean(verify.flag),
+        feedback,
+        progress: updated,
+        message: verify.flag
+          ? "Verification successful — flag received."
+          : "Verification submitted — no flag yet. Check feedback and continue investigation."
+      });
     } catch (err) {
       return buildResult({ success: false, message: err.message });
     }

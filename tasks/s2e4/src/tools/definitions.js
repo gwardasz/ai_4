@@ -9,9 +9,12 @@ const delegate = {
     properties: {
       agent: { type: "string", description: 'Agent name: "zmail" or "analyst".' },
       task: { type: "string", description: "Clear task description for the child agent." },
-      sessionId: { type: "string", description: "Optional session ID to resume a suspended agent." }
+      sessionId: {
+        type: ["string", "null"],
+        description: "Session ID to resume a suspended agent, or null."
+      }
     },
-    required: ["agent", "task"],
+    required: ["agent", "task", "sessionId"],
     additionalProperties: false
   },
   strict: true
@@ -114,6 +117,90 @@ const zmailGetMessage = {
   strict: true
 };
 
+const zmailGetThread = {
+  type: "function",
+  name: "zmail_get_thread",
+  description:
+    "Fetch all messages in an email thread by threadID. Saves full messages to workspace/mails/.",
+  parameters: {
+    type: "object",
+    properties: {
+      threadID: { type: "integer", description: "Numeric threadID from mail metadata (e.g. from search hits)." },
+      fetchBodies: { type: "boolean", description: "Fetch and save full message bodies (default true)." }
+    },
+    required: ["threadID"],
+    additionalProperties: false
+  },
+  strict: false
+};
+
+const submitLead = {
+  type: "function",
+  name: "submit_lead",
+  description:
+    "Record an investigation lead discovered in a mail — recipients, keywords, domains, or follow-up search ideas relevant to the mission.",
+  parameters: {
+    type: "object",
+    properties: {
+      sourceMailId: { type: "string", description: "Mail ID the lead was found in." },
+      summary: { type: "string", description: "Short description of the lead." },
+      keywords: { type: "array", items: { type: "string" } },
+      entities: {
+        type: "object",
+        properties: {
+          emails: { type: "array", items: { type: "string" } },
+          domains: { type: "array", items: { type: "string" } },
+          people: { type: "array", items: { type: "string" } }
+        },
+        additionalProperties: false
+      },
+      suggestedQueries: {
+        type: "array",
+        items: { type: "string" },
+        description: "Gmail-style query hints for orchestrator."
+      },
+      relatedThreadIDs: {
+        type: "array",
+        items: { type: "integer" },
+        description:
+          "Numeric threadIDs to fetch via zmail_get_thread — from metadata.threadID or body.threadID of the source mail or related mails."
+      },
+      priority: { type: "string", enum: ["normal", "high"] },
+      rationale: { type: "string", description: "Why this lead matters for the mission." }
+    },
+    required: ["sourceMailId", "summary"],
+    additionalProperties: false
+  },
+  strict: false
+};
+
+const proposeSearch = {
+  type: "function",
+  name: "propose_search",
+  description:
+    "Propose a zmail search derived from an investigation lead. Requires user approval before execution.",
+  parameters: {
+    type: "object",
+    properties: {
+      leadId: { type: "string", description: "ID from investigation-leads.json." },
+      query: { type: "string", description: "Gmail-style zmail query to run after approval." },
+      rationale: { type: "string", description: "Why this search should be run (shown to user)." }
+    },
+    required: ["leadId", "query", "rationale"],
+    additionalProperties: false
+  },
+  strict: true
+};
+
+const submitVerifyTool = {
+  type: "function",
+  name: "submit_verify",
+  description:
+    "Submit current progress fields to the hub for verification. Call only when all mission fields are filled. Returns flag on success or feedback to guide further investigation.",
+  parameters: { type: "object", properties: {}, additionalProperties: false },
+  strict: true
+};
+
 const markMailAnalyzed = {
   type: "function",
   name: "mark_mail_analyzed",
@@ -122,9 +209,9 @@ const markMailAnalyzed = {
     type: "object",
     properties: {
       mailId: { type: "string" },
-      notes: { type: "string" }
+      notes: { type: ["string", "null"], description: "Optional analysis notes, or null." }
     },
-    required: ["mailId"],
+    required: ["mailId", "notes"],
     additionalProperties: false
   },
   strict: true
@@ -138,9 +225,12 @@ const message = {
     type: "object",
     properties: {
       content: { type: "string", description: "Question or clarification request." },
-      sessionId: { type: "string", description: "Optional existing session ID when continuing." }
+      sessionId: {
+        type: ["string", "null"],
+        description: "Existing session ID when continuing, or null."
+      }
     },
-    required: ["content"],
+    required: ["content", "sessionId"],
     additionalProperties: false
   },
   strict: true
@@ -153,14 +243,18 @@ const STATIC_TOOLS = {
   zmail_help: zmailHelp,
   zmail_search: zmailSearch,
   zmail_get_message: zmailGetMessage,
+  zmail_get_thread: zmailGetThread,
   mark_mail_analyzed: markMailAnalyzed,
+  submit_lead: submitLead,
+  propose_search: proposeSearch,
+  submit_verify: submitVerifyTool,
   message
 };
 
 export const AGENT_TOOLS = {
-  orchestrator: ["delegate", "read_file", "write_progress", "reply_to_agent"],
-  zmail: ["zmail_help", "zmail_search", "zmail_get_message", "read_file", "message"],
-  analyst: ["read_file", "mark_mail_analyzed", "message"]
+  orchestrator: ["delegate", "read_file", "write_progress", "propose_search", "submit_verify", "reply_to_agent"],
+  zmail: ["zmail_help", "zmail_search", "zmail_get_message", "zmail_get_thread", "read_file", "message"],
+  analyst: ["read_file", "mark_mail_analyzed", "submit_lead", "message"]
 };
 
 export const toolsForAgent = (agentName, mission) => {

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { zmailHelp, zmailSearch, zmailGetMessages } from "../../services/zmail-api.js";
+import { zmailHelp, zmailSearch, zmailGetMessages, zmailGetThread } from "../../services/zmail-api.js";
 import {
   extractMailId,
   normalizeMessages,
@@ -9,6 +9,7 @@ import {
 } from "../../services/zmail-parse.js";
 import { readJson, writeJson, mailFilePath } from "../../state/store.js";
 import { MAX_SEARCHES_PER_CYCLE } from "../../config.js";
+import { markProposalExecutedByQuery, markThreadFetchedForLeads } from "../../state/leads.js";
 
 const buildResult = ({ success, message, ...rest }) => {
   const payload = { success, ...rest };
@@ -21,6 +22,43 @@ const hashQuery = (query) => createHash("sha256").update(query).digest("hex").sl
 const getFetchedRegistry = () => readJson("state/fetched-mail-ids.json", { mails: {}, searches: [] });
 
 const saveFetchedRegistry = (registry) => writeJson("state/fetched-mail-ids.json", registry);
+
+const fetchAndSaveHit = async (log, registry, hit, { query, fetchBodies }) => {
+  const id = extractMailId(hit);
+  if (!id) return null;
+
+  if (registry.mails[String(id)]?.status === "fetched") {
+    log.warn("tool.guard", { agent: "zmail", reason: "mail_already_fetched", mailId: id });
+    return String(id);
+  }
+
+  let body = null;
+  if (fetchBodies) {
+    if (typeof hit.message === "string") {
+      body = hit;
+    } else {
+      const full = await zmailGetMessages(id, log);
+      const messages = normalizeMessages(full.data);
+      body = pickMailBody(messages, hit);
+    }
+    if (!body) {
+      log.warn("zmail.parse.invalid_body", { mailId: id, reason: "fetch_empty", action: "skip_save" });
+      return null;
+    }
+    await saveMailRecord(log, {
+      id,
+      query,
+      metadata: hit,
+      body,
+      fetchedAt: new Date().toISOString()
+    });
+    registry.mails[String(id)] = { status: "fetched", fetchedAt: new Date().toISOString(), query };
+  } else {
+    registry.mails[String(id)] = { status: "listed", listedAt: new Date().toISOString(), query };
+  }
+
+  return String(id);
+};
 
 const saveMailRecord = async (log, { id, query, metadata, body, fetchedAt }) => {
   const picked = pickMailBody(Array.isArray(body) ? body : body ? [body] : [], metadata);
@@ -94,34 +132,8 @@ export const createZmailHandlers = (log, { cycle = 0 } = {}) => ({
     const mailIds = [];
 
     for (const hit of hits) {
-      const id = extractMailId(hit);
-      if (!id) continue;
-      mailIds.push(String(id));
-
-      if (registry.mails[String(id)]?.status === "fetched") {
-        log.warn("tool.guard", { agent: "zmail", reason: "mail_already_fetched", mailId: id });
-        continue;
-      }
-
-      if (fetchBodies) {
-        const full = await zmailGetMessages(id, log);
-        const messages = normalizeMessages(full.data);
-        const body = pickMailBody(messages, hit);
-        if (!body) {
-          log.warn("zmail.parse.invalid_body", { mailId: id, reason: "fetch_empty", action: "skip_save" });
-          continue;
-        }
-        await saveMailRecord(log, {
-          id,
-          query,
-          metadata: hit,
-          body,
-          fetchedAt: new Date().toISOString()
-        });
-        registry.mails[String(id)] = { status: "fetched", fetchedAt: new Date().toISOString(), query };
-      } else {
-        registry.mails[String(id)] = { status: "listed", listedAt: new Date().toISOString(), query };
-      }
+      const savedId = await fetchAndSaveHit(log, registry, hit, { query, fetchBodies });
+      if (savedId) mailIds.push(savedId);
     }
 
     if (mailIds.length === 0) {
@@ -157,11 +169,17 @@ export const createZmailHandlers = (log, { cycle = 0 } = {}) => ({
     });
     await saveFetchedRegistry(registry);
 
+    const executedProposal = await markProposalExecutedByQuery(query);
+    if (executedProposal) {
+      log.info("proposal.executed", { proposalId: executedProposal.id, query });
+    }
+
     return buildResult({
       success: true,
       query,
       mailIds,
       count: mailIds.length,
+      executedProposalId: executedProposal?.id ?? null,
       message: `Found and saved ${mailIds.length} message(s) to workspace/mails/.`
     });
   },
@@ -214,5 +232,93 @@ export const createZmailHandlers = (log, { cycle = 0 } = {}) => ({
     await saveFetchedRegistry(registry);
 
     return buildResult({ success: true, cached: false, id: mailId, mail: saved });
+  },
+
+  async zmail_get_thread({ threadID, fetchBodies = true }) {
+    const parsedThreadId = Number(threadID);
+    if (!Number.isFinite(parsedThreadId)) {
+      return buildResult({ success: false, message: "threadID must be a numeric thread identifier." });
+    }
+
+    const registry = await getFetchedRegistry();
+    const threadKey = `thread:${parsedThreadId}`;
+    const queryHash = hashQuery(threadKey);
+    const queryLabel = threadKey;
+
+    const cycleSearches = registry.searches.filter((s) => s.cycle === cycle);
+    const alreadyFetched = registry.searches.some((s) => s.hash === queryHash);
+
+    if (alreadyFetched) {
+      log.warn("tool.guard", { agent: "zmail", reason: "thread_already_fetched", threadID: parsedThreadId });
+      const cachedIds = registry.searches
+        .filter((s) => s.hash === queryHash)
+        .flatMap((s) => s.mailIds ?? []);
+      return buildResult({
+        success: true,
+        cached: true,
+        threadID: parsedThreadId,
+        mailIds: cachedIds,
+        message: "This thread was already fetched. Use cached mail IDs."
+      });
+    }
+
+    if (cycleSearches.length >= MAX_SEARCHES_PER_CYCLE) {
+      log.warn("tool.guard", { agent: "zmail", reason: "search_limit_reached", cycle });
+      return buildResult({
+        success: false,
+        message: `Search limit (${MAX_SEARCHES_PER_CYCLE}) reached for this cycle. Wait for next cycle.`
+      });
+    }
+
+    const { ok, status, data } = await zmailGetThread(parsedThreadId, log);
+    if (!ok) {
+      return buildResult({ success: false, message: `zmail getThread failed (${status})`, data });
+    }
+
+    const hits = normalizeMessages(data);
+    const mailIds = [];
+
+    for (const hit of hits) {
+      const savedId = await fetchAndSaveHit(log, registry, hit, { query: queryLabel, fetchBodies });
+      if (savedId) mailIds.push(savedId);
+    }
+
+    const searchEntry = {
+      hash: queryHash,
+      type: "thread",
+      threadID: parsedThreadId,
+      query: queryLabel,
+      cycle,
+      status: mailIds.length > 0 ? "found" : "no_data",
+      at: new Date().toISOString(),
+      mailIds
+    };
+    registry.searches.push(searchEntry);
+    await saveFetchedRegistry(registry);
+
+    const pursuedLeads = await markThreadFetchedForLeads(parsedThreadId);
+    if (pursuedLeads.length > 0) {
+      log.info("lead.thread_pursued", { threadID: parsedThreadId, leadIds: pursuedLeads });
+    }
+
+    if (mailIds.length === 0) {
+      return buildResult({
+        success: true,
+        threadID: parsedThreadId,
+        mailIds: [],
+        status: "no_data",
+        pursuedLeads,
+        message: "Thread returned no messages."
+      });
+    }
+
+    return buildResult({
+      success: true,
+      threadID: parsedThreadId,
+      mailIds,
+      count: mailIds.length,
+      pursuedLeads,
+      message: `Fetched thread ${parsedThreadId} — saved ${mailIds.length} message(s) to workspace/mails/.`
+    });
   }
 });

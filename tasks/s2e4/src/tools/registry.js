@@ -9,7 +9,7 @@ export const createHandlersForAgent = (agentName, log = noopLogger, ctx = {}) =>
   const handlers = {};
 
   if (agentName === "orchestrator") {
-    Object.assign(handlers, createOrchestratorHandlers(log));
+    Object.assign(handlers, createOrchestratorHandlers(log, ctx));
   }
 
   if (agentName === "zmail") {

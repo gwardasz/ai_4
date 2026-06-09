@@ -10,8 +10,14 @@ import {
 } from "./sessions.js";
 import { MAX_TURNS, MAX_DEPTH, maxOutputTokens } from "../config.js";
 import { noopLogger, redact } from "../utils/logger.js";
-import { missingFields } from "../services/verify-api.js";
+import { missingFields, hasAllFields } from "../services/verify-api.js";
 import { listUnanalyzedMailIds } from "../tools/handlers/analyst.js";
+import {
+  listOpenLeads,
+  listOpenLeadsWithThreads,
+  listApprovedUnexecuted,
+  listPendingUserProposals
+} from "../state/leads.js";
 
 const truncate = (s, max = 120) => (s.length > max ? `${s.slice(0, max)}…` : s);
 
@@ -23,6 +29,7 @@ const toOutput = (callId, payload) => ({
 
 const executeToolCalls = async (toolCalls, handlers, ctx, log) => {
   const executed = [];
+  let flag = null;
 
   for (const call of toolCalls) {
     let args;
@@ -87,6 +94,10 @@ const executeToolCalls = async (toolCalls, handlers, ctx, log) => {
     const result = await handler(args);
     log.info("tool.result", { agent: ctx.agentName, name: call.name, success: result?.success !== false });
 
+    if (call.name === "submit_verify" && result?.flag) {
+      flag = result.flag;
+    }
+
     let meta = null;
     if (call.name === "message" && result?.waiting) {
       const sessionId = result.sessionId ?? createSessionId();
@@ -107,7 +118,7 @@ const executeToolCalls = async (toolCalls, handlers, ctx, log) => {
     executed.push({ output: toOutput(call.call_id, result), meta });
   }
 
-  return executed;
+  return { executed, flag };
 };
 
 export const runAgent = async (
@@ -160,7 +171,8 @@ export const runAgent = async (
       tools,
       instructions: template.systemPrompt,
       maxOutputTokens,
-      input: conversation
+      input: conversation,
+      log
     });
 
     const toolCalls = extractToolCalls(response);
@@ -185,8 +197,13 @@ export const runAgent = async (
       conversationSnapshot: [...conversation, ...response.output]
     };
 
-    const executed = await executeToolCalls(toolCalls, handlers, ctx, log);
+    const { executed, flag: verifyFlag } = await executeToolCalls(toolCalls, handlers, ctx, log);
     conversation = [...conversation, ...response.output, ...executed.map((e) => e.output)];
+
+    if (verifyFlag) {
+      log.info("agent.flag", { agent: agentName, flag: verifyFlag });
+      return { success: true, agent: agentName, flag: verifyFlag };
+    }
 
     const waiting = executed.find((e) => e.meta?.waiting);
     if (waiting) {
@@ -224,12 +241,49 @@ const buildProgressSnapshot = (progress, mission) => {
   return snapshot;
 };
 
+const formatLeadsHint = (leads) => {
+  if (leads.length === 0) return "None.";
+  return leads
+    .map((lead) => {
+      const parts = [`- ${lead.id}: ${lead.summary}`];
+      if (lead.relatedThreadIDs?.length) {
+        parts.push(`threads: ${lead.relatedThreadIDs.join(", ")}`);
+      }
+      if (lead.suggestedQueries?.length) {
+        parts.push(`queries: ${lead.suggestedQueries.join("; ")}`);
+      }
+      return parts.join(" | ");
+    })
+    .join("\n");
+};
+
+const formatThreadLeadsHint = (leads) => {
+  if (leads.length === 0) return "None.";
+  return leads
+    .map(
+      (lead) =>
+        `- ${lead.id}: fetch thread(s) ${lead.relatedThreadIDs.join(", ")} — ${lead.summary}`
+    )
+    .join("\n");
+};
+
+const formatApprovedSearches = (proposals) => {
+  if (proposals.length === 0) return "None.";
+  return proposals.map((p) => `- ${p.id}: "${p.query}" (lead ${p.leadId})`).join("\n");
+};
+
 export const runOrchestratorCycle = async (
   progress,
   mission,
   { log = noopLogger, cycle = 0 } = {}
 ) => {
   const unanalyzed = await listUnanalyzedMailIds();
+  const openLeads = await listOpenLeads();
+  const threadLeads = await listOpenLeadsWithThreads();
+  const approvedSearches = await listApprovedUnexecuted();
+  const pendingApproval = await listPendingUserProposals();
+  const allFieldsFilled = hasAllFields(progress, mission.fields);
+
   const unanalyzedHint =
     unanalyzed.length > 0
       ? `Unanalyzed mail IDs (${unanalyzed.length}): ${unanalyzed.slice(0, 10).join(", ")}${unanalyzed.length > 10 ? "..." : ""}`
@@ -244,14 +298,30 @@ export const runOrchestratorCycle = async (
     "",
     unanalyzedHint,
     "",
-    "Steps:",
-    "1. Delegate to zmail — search and fetch emails relevant to the mission (derive queries from the mission yourself).",
-    "2. Delegate to analyst — extract the requested fields from unanalyzed mails in workspace/mails/.",
-    "3. Update progress via write_progress with any confirmed values from the analyst JSON reply.",
-    "4. If sub-agents sent messages, use reply_to_agent then re-delegate with sessionId.",
-    "5. Do not call verify — the main loop handles that deterministically.",
+    "Open investigation leads:",
+    formatLeadsHint(openLeads),
     "",
-    "If data is missing, note it and finish the cycle — new mail may arrive later."
+    "Leads with related threads (delegate zmail zmail_get_thread for each threadID — no user approval):",
+    formatThreadLeadsHint(threadLeads),
+    "",
+    "Approved searches awaiting execution (user-approved, run via delegate zmail):",
+    formatApprovedSearches(approvedSearches),
+    "",
+    `Pending user approval: ${pendingApproval.length} proposal(s).`,
+    "",
+    "Steps:",
+    "1. If approved searches listed above — delegate to zmail for those queries first.",
+    "2. For leads with relatedThreadIDs — delegate to zmail to call zmail_get_thread for each thread (fetch full conversation; no propose_search needed).",
+    "3. Delegate to zmail for mission-direct searches (no propose_search needed).",
+    "4. Delegate to analyst — extract mission fields + submit_lead (include relatedThreadIDs when mail metadata suggests a thread worth exploring).",
+    "5. For each open lead without a proposal — use propose_search for query-based follow-ups (NOT delegate zmail). User must approve before lead query searches run.",
+    "6. write_progress with confirmed values from analyst JSON.",
+    "7. If sub-agents sent messages — reply_to_agent then re-delegate with sessionId.",
+    allFieldsFilled
+      ? "8. All mission fields filled — call submit_verify. If flag returned, investigation is complete. If no flag, use verifyFeedback to fix wrong fields and continue."
+      : "8. When all fields are filled — call submit_verify. Until then, keep investigating.",
+    "",
+    "Do not finish the investigation until submit_verify returns a flag."
   ].join("\n");
 
   return runAgent("orchestrator", task, 0, { log, cycle, mission });

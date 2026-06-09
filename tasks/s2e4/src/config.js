@@ -12,10 +12,10 @@ export const MAX_SEARCHES_PER_CYCLE = Number(process.env.MAX_SEARCHES_PER_CYCLE 
 export const maxOutputTokens = 8192;
 
 export const orchestratorModel = resolveModelForProvider(
-  process.env.ORCHESTRATOR_MODEL ?? "google/gemini-3.1-flash-lite"
+  process.env.ORCHESTRATOR_MODEL ?? "gpt-5.4-mini"
 );
 export const specialistModel = resolveModelForProvider(
-  process.env.SPECIALIST_MODEL ?? "google/gemini-3.1-flash-lite"
+  process.env.SPECIALIST_MODEL ?? "gpt-5.4-mini"
 );
 
 export const HUB_BASE_URL = process.env.HUB_BASE_URL?.trim().replace(/\/+$/, "");

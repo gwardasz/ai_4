@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { chat, extractText } from "./llm.js";
 import { WORKSPACE_BASE, setWorkspaceRoot, orchestratorModel } from "./config.js";
 import { createEmptyProgress, saveProgress } from "./state/progress.js";
+import { initLeadState } from "./state/leads.js";
+import { initMailState } from "./state/store.js";
 
 let currentMission = null;
 
@@ -146,6 +148,9 @@ export const initRun = async ({ text, fresh = false }) => {
   if (!(await fileExists(progressPath))) {
     await saveProgress(createEmptyProgress(mission.fields));
   }
+
+  await initLeadState();
+  await initMailState();
 
   return currentMission;
 };

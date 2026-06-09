@@ -26,11 +26,20 @@ On startup the system:
 
 ## Architecture
 
-- **Orchestrator** — woken every 15s, receives mission + progress each cycle, delegates to specialists
-- **ZMAIL Operator** — searches/fetches mails based on mission context (LLM-derived queries)
-- **Data Analyst** — extracts requested fields from mail bodies via LLM (no regex extraction)
+- **Orchestrator** — coordinates zmail/analyst, proposes lead searches, calls `submit_verify` when all fields are ready
+- **ZMAIL Operator** — searches/fetches mails (mission-direct or user-approved lead queries)
+- **Data Analyst** — extracts mission fields + submits investigation leads (`submit_lead`)
 
-Verify/submit is **deterministic** in `app.js` (not delegated to LLM). Process stops when hub returns `{FLG:...}`.
+### Investigation leads flow
+
+1. Analyst reads mails and records leads in `state/investigation-leads.json` (with `relatedThreadIDs` when a thread should be explored)
+2. Orchestrator delegates **zmail_get_thread** for thread leads (no approval) or **propose_search** for broader queries
+3. After each cycle, **you approve** query-based searches in the terminal (`y/n/a/q`)
+4. Next cycle orchestrator delegates approved queries to zmail
+5. When all mission fields are filled, orchestrator calls **`submit_verify`**
+6. Run ends only when hub returns a **flag**; wrong answers trigger re-investigation via `verifyFeedback`
+
+Mission-direct searches (from your CLI mission) run without approval. Only **lead-derived** searches need your consent.
 
 ## Env
 
@@ -40,8 +49,9 @@ Verify/submit is **deterministic** in `app.js` (not delegated to LLM). Process s
 | `LOG_CONSOLE` | `all` | `all` \| `conversation` |
 | `CYCLE_SLEEP_MS` | `15000` | Pause between orchestrator cycles |
 | `MAX_CYCLES` | `120` | Max loop iterations |
-| `ORCHESTRATOR_MODEL` | `google/gemini-3.1-flash-lite` | Orchestrator + mission bootstrap model |
-| `SPECIALIST_MODEL` | `google/gemini-3.1-flash-lite` | Zmail + Analyst models |
+| `AUTO_APPROVE_LEADS` | — | Set `true` to skip lead approval prompts (dev) |
+| `ORCHESTRATOR_MODEL` | `gpt-5.4-mini` | Orchestrator + mission bootstrap model |
+| `SPECIALIST_MODEL` | `gpt-5.4-mini` | Zmail + Analyst models |
 
 Logs: `tasks/s2e4/logs/YYYY-MM-DD.jsonl`
 
@@ -53,10 +63,32 @@ workspace/
   runs/
     <hash>/        # per-mission isolated state
       mission.json
-      state/       # progress, fetched/analyzed registries
-      mails/       # saved message bodies
-      docs/        # cached zmail API help
-      messages/    # agent message inbox
+      state/
+        progress.json
+        investigation-leads.json
+        search-proposals.json
+        fetched-mail-ids.json
+        analyzed-mail-ids.json
+      mails/
+      docs/
+      messages/
 ```
 
 Same mission text → same run hash → resumes existing progress. Use `--fresh` to reset.
+
+## Tests
+
+```bash
+npm run test:s2e4
+```
+
+## Lead approval example
+
+```
+--- Proposed search ---
+Lead:    lead_a1b2c3d4e5f6
+Trop:    Mail mentions security@system.nwo
+Query:   from:security@system.nwo
+Reason:  Sender may have the confirmation ticket
+Approve? [y/n/a=all/q=quit]: y
+```

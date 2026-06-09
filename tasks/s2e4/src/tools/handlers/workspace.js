@@ -2,6 +2,13 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { canRead, canWrite, resolveWorkspacePath } from "../sandbox.js";
 
+const READ_DEFAULTS = {
+  "state/analyzed-mail-ids.json": { analyzed: [] },
+  "state/fetched-mail-ids.json": { mails: {}, searches: [] }
+};
+
+const normalizePath = (path) => path.replace(/\\/g, "/");
+
 const buildResult = ({ success, message, ...rest }) => {
   const payload = { success, ...rest };
   if (message) payload.message = message;
@@ -20,6 +27,16 @@ export const createWorkspaceHandlers = (agent, log) => ({
       const content = await readFile(resolveWorkspacePath(path), "utf-8");
       return buildResult({ success: true, path, content });
     } catch (err) {
+      const normalized = normalizePath(path);
+      const fallback = READ_DEFAULTS[normalized];
+      if (err.code === "ENOENT" && fallback) {
+        return buildResult({
+          success: true,
+          path,
+          content: `${JSON.stringify(fallback, null, 2)}\n`,
+          defaulted: true
+        });
+      }
       return buildResult({ success: false, message: err.message });
     }
   },

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readJson, writeJson } from "../../state/store.js";
+import { addLead } from "../../state/leads.js";
 
 const buildResult = ({ success, message, ...rest }) => {
   const payload = { success, ...rest };
@@ -41,6 +42,44 @@ export const createAnalystHandlers = (log) => ({
       mailId: id,
       message: `Marked mail ${id} as analyzed.`
     });
+  },
+
+  async submit_lead({
+    sourceMailId,
+    summary,
+    keywords,
+    entities,
+    suggestedQueries,
+    relatedThreadIDs,
+    priority,
+    rationale
+  }) {
+    if (!sourceMailId || !summary?.trim()) {
+      return buildResult({ success: false, message: "sourceMailId and summary are required." });
+    }
+
+    try {
+      const { lead, created } = await addLead({
+        sourceMailId,
+        summary,
+        keywords,
+        entities,
+        suggestedQueries,
+        relatedThreadIDs,
+        priority,
+        rationale
+      });
+      log.info("lead.submitted", { leadId: lead.id, created, sourceMailId });
+      return buildResult({
+        success: true,
+        leadId: lead.id,
+        created,
+        lead,
+        message: created ? "Investigation lead recorded." : "Lead already exists (deduplicated)."
+      });
+    } catch (err) {
+      return buildResult({ success: false, message: err.message });
+    }
   }
 });
 

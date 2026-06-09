@@ -36,6 +36,21 @@ Endpoint: `POST {HUB_BASE_URL}/api/zmail` z polem `apikey`.
 - Pełna treść maila: pole **`message`** (string) wewnątrz obiektu w **`items`**.
 - `ids` akceptuje **messageID** (32-znakowy hash) lub **rowID** (number).
 
+### `getThread`
+
+```json
+{
+  "apikey": "...",
+  "action": "getThread",
+  "threadID": 62044
+}
+```
+
+- Zwraca wszystkie maile w wątku w **`items`** (ten sam kształt co `getMessages` / search metadata).
+- `threadID` jest numeryczny — dostępny w polu `threadID` trafień search i zapisanych maili.
+
+Narzędzie agenta: **`zmail_get_thread`** — zapisuje każdy mail z wątku do `workspace/mails/`.
+
 ### Pusta odpowiedź search
 
 `items: []`, `pagination.total: 0`, HTTP 200 — nie jest to błąd.

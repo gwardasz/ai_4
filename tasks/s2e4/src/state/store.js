@@ -18,3 +18,14 @@ export const writeJson = async (relativePath, data) => {
 };
 
 export const mailFilePath = (id) => `mails/${String(id).replace(/[^\w-]/g, "_")}.json`;
+
+export const initMailState = async () => {
+  const analyzed = await readJson("state/analyzed-mail-ids.json", null);
+  if (!analyzed) {
+    await writeJson("state/analyzed-mail-ids.json", { analyzed: [] });
+  }
+  const fetched = await readJson("state/fetched-mail-ids.json", null);
+  if (!fetched) {
+    await writeJson("state/fetched-mail-ids.json", { mails: {}, searches: [] });
+  }
+};

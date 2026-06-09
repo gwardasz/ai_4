@@ -14,7 +14,13 @@ const parseRetryAfter = (headers) => {
 
 export const zmailRequest = async (payload, log = noopLogger) => {
   const body = { apikey: AI_DEVS_API_KEY, ...payload };
-  log.info("zmail.request", { action: body.action, query: body.query, page: body.page, ids: body.ids });
+  log.info("zmail.request", {
+    action: body.action,
+    query: body.query,
+    page: body.page,
+    ids: body.ids,
+    threadID: body.threadID
+  });
 
   let retries = 0;
 
@@ -66,3 +72,4 @@ export const zmailHelp = (log) => zmailRequest({ action: "help", page: 1 }, log)
 export const zmailSearch = (query, page = 1, perPage = 10, log) =>
   zmailRequest({ action: "search", query, page, perPage }, log);
 export const zmailGetMessages = (ids, log) => zmailRequest({ action: "getMessages", ids }, log);
+export const zmailGetThread = (threadID, log) => zmailRequest({ action: "getThread", threadID }, log);

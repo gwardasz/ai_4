@@ -4,18 +4,25 @@ import { getWorkspaceRoot } from "../config.js";
 const READ_PREFIXES = {
   orchestrator: ["state/", "mails/", "messages/", "docs/"],
   zmail: ["state/fetched-mail-ids.json", "state/search-log.json", "mails/", "docs/", "messages/"],
-  analyst: ["state/analyzed-mail-ids.json", "mails/", "messages/"]
+  analyst: [
+    "state/analyzed-mail-ids.json",
+    "state/fetched-mail-ids.json",
+    "state/investigation-leads.json",
+    "state/search-proposals.json",
+    "mails/",
+    "messages/"
+  ]
 };
 
 const WRITE_RULES = {
-  orchestrator: ["state/progress.json"],
+  orchestrator: ["state/progress.json", "state/search-proposals.json"],
   zmail: [
     "state/fetched-mail-ids.json",
     "state/search-log.json",
     "docs/zmail-help.json",
     "messages/inbox.json"
   ],
-  analyst: ["state/analyzed-mail-ids.json"]
+  analyst: ["state/analyzed-mail-ids.json", "state/investigation-leads.json"]
 };
 
 export const isPathSafe = (path) => {
