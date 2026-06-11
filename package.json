@@ -8,7 +8,10 @@
     "test": "npm run test:s2e4",
     "test:s2e4": "node --test tasks/s2e4/test/**/*.test.js",
     "probe:zmail": "node tasks/s2e4/scripts/probe-zmail.mjs",
-    "s2e4": "node tasks/s2e4/app.js"
+    "probe:drone": "node tasks/s2e5/scripts/probe-map.js",
+    "s2e4": "node tasks/s2e4/app.js",
+    "s2e5": "node tasks/s2e5/app.js",
+    "test:s2e5": "node --test tasks/s2e5/test/**/*.test.js"
   },
   "keywords": [],
   "author": "",
