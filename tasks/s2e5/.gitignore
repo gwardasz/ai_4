@@ -6,7 +6,3 @@ workspace/probe/
 
 # Cache dokumentacji API pobranej w runtime
 workspace/docs/
-
-# Lokalne sekrety (główny .env jest w root repo)
-.env
-.env.*
