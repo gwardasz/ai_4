@@ -11,12 +11,14 @@
     "probe:drone": "node tasks/s2e5/scripts/probe-map.js",
     "s2e4": "node tasks/s2e4/app.js",
     "s2e5": "node tasks/s2e5/app.js",
-    "test:s2e5": "node --test tasks/s2e5/test/**/*.test.js"
+    "test:s2e5": "node --test tasks/s2e5/test/**/*.test.js",
+    "s3e1:download": "node tasks/s3e1/scripts/downloader.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "adm-zip": "^0.5.17",
     "gray-matter": "^4.0.3",
     "js-tiktoken": "^1.0.21",
     "sharp": "^0.34.5"

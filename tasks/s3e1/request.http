@@ -1,0 +1,13 @@
+@hub = {{$dotenv HUB_BASE_URL}}
+@apikey = {{$dotenv AI_DEVS_API_KEY}}
+###
+POST {{hub}}/verify
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "task": "evaluation",
+  "answer": {
+    "recheck": ["9132", "1522", "2306", "1048", "2119"]
+  }
+}
