@@ -1,8 +1,17 @@
+import {
+  validateShellValue,
+  type ShellValidationReason,
+} from './shell-output-sanitizer.js'
+
 export interface HubShellFields {
   code?: number
   message?: string
   data?: unknown
 }
+
+export type FormatShellResult =
+  | { kind: 'ok'; text: string }
+  | { kind: 'error'; reason: ShellValidationReason; path: string }
 
 export const isHubShellBody = (obj: Record<string, unknown>): boolean =>
   'message' in obj || 'code' in obj || 'data' in obj
@@ -24,34 +33,75 @@ export const extractHubShellFields = (data: unknown): HubShellFields | null => {
   return fields
 }
 
-export const formatShellResponse = (data: unknown, raw: string): string => {
-  if (typeof data === 'string') return data
-  if (!data || typeof data !== 'object') return raw || ''
+export const sanitizeParsedShellBody = (
+  data: unknown,
+): { ok: true; body: unknown } | { ok: false; reason: ShellValidationReason; path: string } => {
+  const validated = validateShellValue(data, '$')
+  if (!validated.ok) {
+    return validated
+  }
+  return { ok: true, body: validated.value }
+}
 
-  const obj = data as Record<string, unknown>
-  const hub = extractHubShellFields(obj)
+const stringifySanitizedBody = (body: unknown): string => {
+  if (typeof body === 'string') {
+    return body
+  }
+  return JSON.stringify(body, null, 2)
+}
 
-  if (hub) {
-    const payload: Record<string, unknown> = {}
-    if (hub.code !== undefined && !Number.isNaN(hub.code)) payload.code = hub.code
-    if (hub.message !== undefined) payload.message = hub.message
-    if (hub.data !== undefined) payload.data = hub.data
-    return JSON.stringify(payload, null, 2)
+export const formatShellResponse = (data: unknown, raw: string): FormatShellResult => {
+  if (typeof data === 'string') {
+    const sanitized = sanitizeParsedShellBody(data)
+    if (!sanitized.ok) {
+      return { kind: 'error', reason: sanitized.reason, path: sanitized.path }
+    }
+    return { kind: 'ok', text: stringifySanitizedBody(sanitized.body) }
   }
 
-  if (typeof obj.output === 'string') return obj.output
-  if (typeof obj.error === 'string') return obj.error
-  if (typeof obj.result === 'string') return obj.result
-  return JSON.stringify(data, null, 2)
+  if (!data || typeof data !== 'object') {
+    const fallback = raw || ''
+    if (!fallback) {
+      return { kind: 'ok', text: '' }
+    }
+    const sanitized = sanitizeParsedShellBody(fallback)
+    if (!sanitized.ok) {
+      return { kind: 'error', reason: sanitized.reason, path: sanitized.path }
+    }
+    return { kind: 'ok', text: stringifySanitizedBody(sanitized.body) }
+  }
+
+  const obj = data as Record<string, unknown>
+
+  if ('raw' in obj && typeof obj.raw === 'string' && Object.keys(obj).length === 1) {
+    const sanitized = sanitizeParsedShellBody(obj.raw)
+    if (!sanitized.ok) {
+      return { kind: 'error', reason: sanitized.reason, path: sanitized.path }
+    }
+    return { kind: 'ok', text: stringifySanitizedBody(sanitized.body) }
+  }
+
+  const sanitized = sanitizeParsedShellBody(data)
+  if (!sanitized.ok) {
+    return { kind: 'error', reason: sanitized.reason, path: sanitized.path }
+  }
+
+  return { kind: 'ok', text: stringifySanitizedBody(sanitized.body) }
 }
 
 export const shellDataAsText = (data: unknown): string | null => {
-  if (typeof data === 'string') return data
-  if (Array.isArray(data)) {
-    return data.map((item) => (typeof item === 'string' ? item : JSON.stringify(item))).join('\n')
+  const validated = validateShellValue(data, '$')
+  if (!validated.ok) {
+    return null
   }
-  if (data !== undefined && data !== null) {
-    return JSON.stringify(data, null, 2)
+
+  const safe = validated.value
+  if (typeof safe === 'string') return safe
+  if (Array.isArray(safe)) {
+    return safe.map((item) => (typeof item === 'string' ? item : JSON.stringify(item))).join('\n')
+  }
+  if (safe !== undefined && safe !== null) {
+    return JSON.stringify(safe, null, 2)
   }
   return null
 }
@@ -62,4 +112,12 @@ export const isBannedShellResponse = (
 ): boolean => {
   const messageText = typeof obj.message === 'string' ? obj.message : output
   return obj.banned === true || messageText.toLowerCase().includes('banned')
+}
+
+export const formatShellResponseText = (data: unknown, raw: string): string => {
+  const formatted = formatShellResponse(data, raw)
+  if (formatted.kind === 'error') {
+    return ''
+  }
+  return formatted.text
 }

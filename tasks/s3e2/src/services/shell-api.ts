@@ -4,6 +4,7 @@ import {
   MAX_BACKOFF_MS,
   MAX_HTTP_RETRIES,
   MAX_RATE_LIMIT_WAIT_MS,
+  MAX_SHELL_RAW_JSON_CHARS,
   SHELL_URL,
 } from '../config.js'
 import type { Logger } from '../core/logger.js'
@@ -16,6 +17,12 @@ import {
   type GitignoreRule,
 } from '../guardrails/gitignore.js'
 import { checkPathBlocklist, formatBlockedResponse } from '../guardrails/path-blocklist.js'
+import {
+  formatGuardOutput,
+  SHELL_RECOVERY_HINTS,
+  truncateShellOutput,
+  type ShellValidationReason,
+} from './shell-output-sanitizer.js'
 import {
   extractHubShellFields,
   formatShellResponse,
@@ -44,6 +51,9 @@ export interface ShellResult {
   data?: unknown
   blocked?: boolean
   retried?: boolean
+  truncated?: boolean
+  sanitizerRejected?: boolean
+  recoveryHints?: string
 }
 
 export class ShellApiUnavailableError extends Error {
@@ -66,6 +76,21 @@ const dirname = (filePath: string): string => {
   if (idx <= 0) return '/'
   return normalized.slice(0, idx) || '/'
 }
+
+const toShellGuardResult = (
+  response: Response,
+  reason: ShellValidationReason,
+  path: string,
+  retried: boolean,
+): ShellResult => ({
+  success: false,
+  status: response.status,
+  output: formatGuardOutput(reason, path),
+  message: 'System Error: Command returned binary data or exceeded limits',
+  sanitizerRejected: true,
+  recoveryHints: SHELL_RECOVERY_HINTS,
+  retried,
+})
 
 const fetchGitignoreRules = async (dir: string, log: Logger): Promise<GitignoreRule[]> => {
   const cacheKey = dir.replace(/\/+$/, '') || '/'
@@ -128,21 +153,37 @@ const validateCmd = async (cmd: string, log: Logger): Promise<ShellResult | null
 const buildShellResult = (
   response: Response,
   data: unknown,
-  raw: string,
+  output: string,
   retried: boolean,
+  truncated: boolean,
 ): ShellResult => {
-  const output = formatShellResponse(data, raw)
   const hub = extractHubShellFields(data)
 
   return {
     success: response.ok,
     status: response.status,
-    output: output || raw,
+    output,
     ...(hub?.message !== undefined ? { message: hub.message } : {}),
     ...(hub?.code !== undefined && !Number.isNaN(hub.code) ? { code: hub.code } : {}),
     ...(hub?.data !== undefined ? { data: hub.data } : {}),
     retried,
+    truncated,
   }
+}
+
+const formatShellOutput = (
+  data: unknown,
+  raw: string,
+  response: Response,
+  retried: boolean,
+): ShellResult | null => {
+  const formatted = formatShellResponse(data, raw)
+  if (formatted.kind === 'error') {
+    return toShellGuardResult(response, formatted.reason, formatted.path, retried)
+  }
+
+  const { text, truncated } = truncateShellOutput(formatted.text)
+  return buildShellResult(response, data, text, retried, truncated)
 }
 
 const executeShellRaw = async (cmd: string, log: Logger): Promise<ShellResult> => {
@@ -181,6 +222,16 @@ const executeShellRaw = async (cmd: string, log: Logger): Promise<ShellResult> =
     }
 
     const raw = await response.text()
+
+    if (raw.length > MAX_SHELL_RAW_JSON_CHARS) {
+      log.warn('shell.sanitizer', {
+        cmd,
+        reason: 'response_too_large',
+        rawLength: raw.length,
+      })
+      return toShellGuardResult(response, 'response_too_large', '$', retries > 0)
+    }
+
     let data: unknown
     try {
       data = JSON.parse(raw)
@@ -198,7 +249,17 @@ const executeShellRaw = async (cmd: string, log: Logger): Promise<ShellResult> =
       continue
     }
 
-    const output = formatShellResponse(data, raw)
+    const formatted = formatShellOutput(data, raw, response, retries > 0)
+    if (formatted?.sanitizerRejected) {
+      log.warn('shell.sanitizer', {
+        cmd,
+        reason: 'validation_failed',
+        outputLength: formatted.output.length,
+      })
+      return formatted
+    }
+
+    const output = formatted?.output ?? ''
     const obj = data && typeof data === 'object' ? (data as Record<string, unknown>) : {}
 
     if (response.status === 429) {
@@ -228,7 +289,7 @@ const executeShellRaw = async (cmd: string, log: Logger): Promise<ShellResult> =
       }
     }
 
-    return buildShellResult(response, data, raw, retries > 0)
+    return formatted ?? buildShellResult(response, data, output, retries > 0, false)
   }
 }
 
@@ -245,6 +306,8 @@ export const executeShell = async (cmd: string, log: Logger = noopLogger): Promi
     success: result.success,
     status: result.status,
     outputLength: result.output.length,
+    truncated: result.truncated ?? false,
+    sanitizerRejected: result.sanitizerRejected ?? false,
   })
   return result
 }

@@ -1,7 +1,8 @@
 import { isValidConfirmation } from '../config.js'
 import type { Logger } from '../core/logger.js'
 import { withTool } from '../core/tracing/index.js'
-import { executeShell } from '../services/shell-api.js'
+import { executeShell, ShellApiUnavailableError } from '../services/shell-api.js'
+import { SHELL_RECOVERY_HINTS } from '../services/shell-output-sanitizer.js'
 import { submitConfirmation } from '../services/verify-api.js'
 
 export interface ToolResponse {
@@ -28,14 +29,36 @@ export const createHandlers = (log: Logger): ToolHandlers => ({
         }
       }
 
-      const result = await executeShell(cmd.trim(), log)
-      return {
-        success: result.success,
-        message: result.message,
-        output: result.output,
-        recoveryHints: result.blocked
-          ? 'This command was blocked by security policy. Try a different path or approach.'
-          : undefined,
+      try {
+        const result = await executeShell(cmd.trim(), log)
+        return {
+          success: result.success,
+          message: result.message,
+          output: result.output,
+          recoveryHints: result.recoveryHints
+            ?? (result.sanitizerRejected
+              ? SHELL_RECOVERY_HINTS
+              : result.blocked
+                ? 'This command was blocked by security policy. Try a different path or approach.'
+                : undefined),
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        if (error instanceof ShellApiUnavailableError) {
+          return {
+            success: false,
+            message: 'Shell API is unreachable after retries.',
+            output: message,
+            recoveryHints: 'Wait and retry, or reboot the VM if the session may be stuck.',
+          }
+        }
+
+        return {
+          success: false,
+          message: 'System Error: Command returned binary data or exceeded limits',
+          output: message,
+          recoveryHints: SHELL_RECOVERY_HINTS,
+        }
       }
     }),
 

@@ -18,7 +18,7 @@ const loadEnvFile = (filePath: string): void => {
 loadEnvFile(rootEnvFile)
 loadEnvFile(taskEnvFile)
 
-export const MAX_TOOL_ROUNDS = Number(process.env.MAX_TOOL_ROUNDS ?? 24)
+export const MAX_TOOL_ROUNDS = Number(process.env.MAX_TOOL_ROUNDS ?? 50)
 export const LOG_LEVEL = process.env.LOG_LEVEL ?? 'info'
 export const maxOutputTokens = Number(process.env.MAX_OUTPUT_TOKENS ?? 8192)
 
@@ -29,6 +29,10 @@ export const MAX_RATE_LIMIT_WAIT_MS = Number(process.env.MAX_RATE_LIMIT_WAIT_MS 
 
 export const DEADLOCK_STALL_ROUNDS = Number(process.env.DEADLOCK_STALL_ROUNDS ?? 4)
 export const DEADLOCK_REPEAT_THRESHOLD = Number(process.env.DEADLOCK_REPEAT_THRESHOLD ?? 3)
+
+export const MAX_SHELL_OUTPUT_CHARS = Number(process.env.MAX_SHELL_OUTPUT_CHARS ?? 5000)
+export const MAX_SHELL_RAW_JSON_CHARS = Number(process.env.MAX_SHELL_RAW_JSON_CHARS ?? 512_000)
+export const BINARY_SAMPLE_CHARS = Number(process.env.BINARY_SAMPLE_CHARS ?? 8192)
 
 export const HUB_BASE_URL = process.env.HUB_BASE_URL?.trim().replace(/\/+$/, '')
 
