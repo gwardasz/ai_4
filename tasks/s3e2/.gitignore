@@ -1,3 +1,4 @@
 .env
 .langfuse-prompt-state.json
 node_modules/
+request.http

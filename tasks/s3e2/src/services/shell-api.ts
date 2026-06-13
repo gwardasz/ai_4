@@ -16,6 +16,12 @@ import {
   type GitignoreRule,
 } from '../guardrails/gitignore.js'
 import { checkPathBlocklist, formatBlockedResponse } from '../guardrails/path-blocklist.js'
+import {
+  extractHubShellFields,
+  formatShellResponse,
+  isBannedShellResponse,
+  shellDataAsText,
+} from './shell-response.js'
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((done) => setTimeout(done, Math.max(0, ms)))
@@ -34,6 +40,8 @@ export interface ShellResult {
   status: number
   output: string
   message?: string
+  code?: number
+  data?: unknown
   blocked?: boolean
   retried?: boolean
 }
@@ -67,12 +75,18 @@ const fetchGitignoreRules = async (dir: string, log: Logger): Promise<GitignoreR
   const gitignorePath = cacheKey === '/' ? '/.gitignore' : `${cacheKey}/.gitignore`
   const result = await executeShellRaw(`cat ${gitignorePath}`, log)
 
-  if (!result.success || !result.output.trim()) {
+  if (!result.success) {
     gitignoreCache.set(cacheKey, [])
     return []
   }
 
-  const rules = parseGitignore(result.output)
+  const text = shellDataAsText(result.data) ?? result.output
+  if (!text.trim()) {
+    gitignoreCache.set(cacheKey, [])
+    return []
+  }
+
+  const rules = parseGitignore(text)
   gitignoreCache.set(cacheKey, rules)
   return rules
 }
@@ -111,17 +125,24 @@ const validateCmd = async (cmd: string, log: Logger): Promise<ShellResult | null
   return null
 }
 
-const formatShellOutput = (data: unknown, raw: string): string => {
-  if (typeof data === 'string') return data
-  if (data && typeof data === 'object') {
-    const obj = data as Record<string, unknown>
-    if (typeof obj.output === 'string') return obj.output
-    if (typeof obj.message === 'string') return obj.message
-    if (typeof obj.error === 'string') return obj.error
-    if (typeof obj.result === 'string') return obj.result
-    return JSON.stringify(data)
+const buildShellResult = (
+  response: Response,
+  data: unknown,
+  raw: string,
+  retried: boolean,
+): ShellResult => {
+  const output = formatShellResponse(data, raw)
+  const hub = extractHubShellFields(data)
+
+  return {
+    success: response.ok,
+    status: response.status,
+    output: output || raw,
+    ...(hub?.message !== undefined ? { message: hub.message } : {}),
+    ...(hub?.code !== undefined && !Number.isNaN(hub.code) ? { code: hub.code } : {}),
+    ...(hub?.data !== undefined ? { data: hub.data } : {}),
+    retried,
   }
-  return raw || ''
 }
 
 const executeShellRaw = async (cmd: string, log: Logger): Promise<ShellResult> => {
@@ -177,7 +198,7 @@ const executeShellRaw = async (cmd: string, log: Logger): Promise<ShellResult> =
       continue
     }
 
-    const output = formatShellOutput(data, raw)
+    const output = formatShellResponse(data, raw)
     const obj = data && typeof data === 'object' ? (data as Record<string, unknown>) : {}
 
     if (response.status === 429) {
@@ -194,7 +215,7 @@ const executeShellRaw = async (cmd: string, log: Logger): Promise<ShellResult> =
       }
     }
 
-    if (obj.banned === true || output.toLowerCase().includes('banned')) {
+    if (isBannedShellResponse(obj, output)) {
       return {
         success: false,
         status: response.status,
@@ -207,12 +228,7 @@ const executeShellRaw = async (cmd: string, log: Logger): Promise<ShellResult> =
       }
     }
 
-    return {
-      success: response.ok,
-      status: response.status,
-      output: output || raw,
-      retried: retries > 0,
-    }
+    return buildShellResult(response, data, raw, retries > 0)
   }
 }
 

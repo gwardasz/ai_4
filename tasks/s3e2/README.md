@@ -42,6 +42,19 @@ npm start
 npm run test:s3e2
 ```
 
+## Manual shell (debug)
+
+From repo root:
+
+```bash
+npm run s3e2:shell              # interactive REPL
+npm run s3e2:shell -- help      # single command
+```
+
+REPL commands: `exit`, `verify ECCS-...`, `reboot`, or any shell command.
+
+Uses the same `run_shell` handler as the agent (guardrails + retry).
+
 ## Langfuse trace hierarchy
 
 Each CLI run creates one trace:

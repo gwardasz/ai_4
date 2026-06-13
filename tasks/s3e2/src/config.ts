@@ -41,7 +41,7 @@ export const SHELL_URL = `${HUB_BASE_URL}/api/shell`
 export const VERIFY_URL = `${HUB_BASE_URL}/verify`
 
 export const agentModel = resolveModelForProvider(
-  process.env.FIRMWARE_MODEL ?? 'anthropic/claude-sonnet-4-6',
+  process.env.FIRMWARE_MODEL ?? 'gpt-5.4-mini' // 'anthropic/claude-sonnet-4-6',
 )
 
 export const CONFIRMATION_PREFIX = 'ECCS-'
