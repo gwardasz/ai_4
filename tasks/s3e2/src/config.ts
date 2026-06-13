@@ -44,6 +44,11 @@ export const agentModel = resolveModelForProvider(
   process.env.FIRMWARE_MODEL ?? 'anthropic/claude-sonnet-4-6',
 )
 
-export const CONFIRMATION_RE = /^ECCS-[a-f0-9]{40}$/i
+export const CONFIRMATION_PREFIX = 'ECCS-'
+
+export const isValidConfirmation = (value: string): boolean => {
+  const trimmed = value.trim()
+  return trimmed.startsWith(CONFIRMATION_PREFIX) && trimmed.length > CONFIRMATION_PREFIX.length
+}
 
 export const START_TRIGGER = 'Begin firmware recovery mission.'

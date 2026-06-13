@@ -23,7 +23,7 @@ export const tools: ResponseTool[] = [
     type: 'function',
     name: 'submit_confirmation',
     description:
-      'Submit the ECCS confirmation code to Centrala after cooler.bin runs successfully. Format: ECCS- followed by 40 hex characters.',
+      'Submit the ECCS confirmation code to Centrala after cooler.bin runs successfully. Code must start with ECCS-.',
     parameters: {
       type: 'object',
       properties: {

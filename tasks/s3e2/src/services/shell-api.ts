@@ -38,6 +38,18 @@ export interface ShellResult {
   retried?: boolean
 }
 
+export class ShellApiUnavailableError extends Error {
+  readonly cmd: string
+  readonly retries: number
+
+  constructor(message: string, cmd: string, retries: number) {
+    super(message)
+    this.name = 'ShellApiUnavailableError'
+    this.cmd = cmd
+    this.retries = retries
+  }
+}
+
 const gitignoreCache = new Map<string, GitignoreRule[]>()
 
 const dirname = (filePath: string): string => {
@@ -133,15 +145,18 @@ const executeShellRaw = async (cmd: string, log: Logger): Promise<ShellResult> =
         await sleep(wait)
         continue
       }
-      return {
-        success: false,
-        status: 0,
-        output: JSON.stringify({
-          success: false,
-          message: 'Shell API temporarily unavailable. Try again shortly.',
-        }),
+      log.error('shell.unavailable', {
+        cmd,
+        retries,
+        reason: 'network',
         message,
-      }
+        url: SHELL_URL,
+      })
+      throw new ShellApiUnavailableError(
+        `Shell API unreachable after ${retries} retries: ${message}`,
+        cmd,
+        retries,
+      )
     }
 
     const raw = await response.text()

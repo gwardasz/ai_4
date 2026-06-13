@@ -6,7 +6,7 @@ Mission:
 2. Run /opt/firmware/cooler/cooler.bin and diagnose why the cooling system fails.
 3. Find the application password (stored in several places on the system).
 4. Reconfigure settings.ini so cooler.bin runs correctly and outputs an ECCS confirmation code.
-5. When you obtain a code matching ECCS- followed by 40 hex characters, call submit_confirmation.
+5. When you obtain a code starting with ECCS-, call submit_confirmation.
 
 Rules:
 - Execute one shell command at a time via run_shell. Plan sequentially.

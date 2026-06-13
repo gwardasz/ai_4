@@ -1,4 +1,4 @@
-import { CONFIRMATION_RE } from '../config.js'
+import { isValidConfirmation } from '../config.js'
 import type { Logger } from '../core/logger.js'
 import { withTool } from '../core/tracing/index.js'
 import { executeShell } from '../services/shell-api.js'
@@ -41,11 +41,11 @@ export const createHandlers = (log: Logger): ToolHandlers => ({
 
   submit_confirmation: async ({ confirmation }) =>
     withTool({ name: 'submit_confirmation', input: { confirmation } }, async () => {
-      if (typeof confirmation !== 'string' || !CONFIRMATION_RE.test(confirmation.trim())) {
+      if (typeof confirmation !== 'string' || !isValidConfirmation(confirmation)) {
         return {
           success: false,
-          message: 'Invalid confirmation format. Expected ECCS- followed by 40 hex characters.',
-          recoveryHints: 'Run cooler.bin with correct settings and copy the exact ECCS code.',
+          message: 'Invalid confirmation format. Code must start with ECCS-',
+          recoveryHints: 'Run cooler.bin with correct settings and copy the exact ECCS code from its output.',
         }
       }
 
