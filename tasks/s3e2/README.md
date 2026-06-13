@@ -9,7 +9,7 @@ Architecture follows [`notes.md`](notes.md): LLM handles reasoning; TypeScript h
 1. Root [`ai-devs-tasks/.env`](../../.env):
    - `AI_DEVS_API_KEY`
    - `OPENROUTER_API_KEY` (or `OPENAI_API_KEY`) + `AI_PROVIDER=openrouter`
-   - `HUB_BASE_URL=https://hub.ag3nts.org` (optional, this is the default)
+   - `HUB_BASE_URL` 
 
 2. Local [`tasks/s3e2/.env`](.env) (optional):
    - `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` for tracing
