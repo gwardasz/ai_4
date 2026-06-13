@@ -12,7 +12,10 @@
     "s2e4": "node tasks/s2e4/app.js",
     "s2e5": "node tasks/s2e5/app.js",
     "test:s2e5": "node --test tasks/s2e5/test/**/*.test.js",
-    "s3e1:download": "node tasks/s3e1/scripts/downloader.js"
+    "s3e1:download": "node tasks/s3e1/scripts/downloader.js",
+    "s3e2": "npm run start --prefix tasks/s3e2",
+    "test:s3e2": "npm run test --prefix tasks/s3e2",
+    "typecheck:s3e2": "npm run typecheck --prefix tasks/s3e2"
   },
   "keywords": [],
   "author": "",
