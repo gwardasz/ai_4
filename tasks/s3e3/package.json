@@ -1,0 +1,22 @@
+{
+  "name": "s3e3-reactor",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "tsx --env-file=.env src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/**/*.test.ts"
+  },
+  "dependencies": {
+    "@langfuse/core": "^4.6.1",
+    "@langfuse/otel": "^4.4.9",
+    "@langfuse/tracing": "^4.4.9",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-node": "^0.208.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3"
+  }
+}

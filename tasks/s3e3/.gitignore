@@ -1,0 +1,7 @@
+.env
+.langfuse-prompt-state.json
+node_modules/
+request_test.http
+notes.md
+api_responses_examples/
+test/
