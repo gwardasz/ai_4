@@ -1,17 +1,17 @@
-# Wstępna propozycja definicji narzędzia:
-v1.1 - multiple objects
+# Preliminary assumptions regarding the agent tool
+## Tool definition proposal:
 ```json
 {
   "type": "function",
   "function": {
-    "name": "search_inventory",
-    "description": "Searches the database for one or multiple electronic components simultaneously. IMPORTANT: All extracted components and keywords MUST be in Polish.",
+    "name": "find_components_availability_by_city",
+    "description": "Searches the database for multiple electronic components and determines which cities have ALL requested items in stock. The tool returns matching product proposals grouped by available cities. IMPORTANT: All extracted components and keywords MUST be in Polish.",
     "parameters": {
       "type": "object",
       "properties": {
         "queries": {
           "type": "array",
-          "description": "List of distinct components the user is looking for. Create a separate object for each requested item.",
+          "description": "List of distinct components the user is looking for.",
           "items": {
             "type": "object",
             "properties": {
@@ -51,3 +51,20 @@ v1.1 - multiple objects
   }
 }
 ```
+## Error Handling & Recovery Hints
+
+* **Over-constrained search (0 results for an item)**
+  * **Error:** No component matches all requested parameters.
+  * **recoveryHint:** "Item not found. Ask user to drop a constraint (e.g., package type) or suggest finding an alternative."
+
+* **Scattered cart (No common city)**
+  * **Error:** All items exist, but not in a single location.
+  * **recoveryHint:** "No common city for all items. List available locations per item and ask user to split the order or drop the blocking item."
+
+* **Too many results (Vague query)**
+  * **Error:** Query too broad, results truncated.
+  * **recoveryHint:** "Too many matches. Show a few examples and ask user to provide specific parameters (e.g., voltage, size) to narrow down results."
+
+* **Exclusions conflict (All available stock filtered out)**
+  * **Error:** Negative filters removed all available items.
+  * **recoveryHint:** "Exclusions blocked all available stock. Inform user what variants are actually in stock and ask if they accept them."
