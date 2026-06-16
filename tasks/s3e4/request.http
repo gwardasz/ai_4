@@ -1,0 +1,76 @@
+@hub = {{$dotenv HUB_BASE_URL}}
+@apikey = {{$dotenv AI_DEVS_API_KEY}}
+@tunnel = {{$dotenv AZYL_BASE_URL}}
+
+### verify — zglos narzedzia
+POST {{hub}}/verify
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "task": "negotiations",
+  "answer": {
+    "tools": [
+      {
+        "URL": "{{tunnel}}/api/find_item",
+        "description": "Wyszukuje JEDEN przedmiot po opisie naturalnym (params = tekst, np. 'turbina wiatrowa 400W 48V'). Zwraca code, name, cities. Uzyj 3 razy dla 3 potrzebnych czesci. Zapisz kody."
+      },
+      {
+        "URL": "{{tunnel}}/api/find_cities_all",
+        "description": "Miasta z WSZYSTKIMI przedmiotami naraz. params = kody z find_item oddzielone przecinkiem, np. 'WITR48,A94MAZ,06OTEA'. Zwraca cities=Nazwa1,Nazwa2."
+      }
+    ]
+  }
+}
+
+### verify — sprawdz wynik (po 30-60 s)
+POST {{hub}}/verify
+Content-Type: application/json
+
+{
+  "apikey": "{{apikey}}",
+  "task": "negotiations",
+  "answer": {
+    "action": "check"
+  }
+}
+
+### Test lokalny — find_item
+POST http://localhost:3000/api/find_item
+Content-Type: application/json
+
+{
+  "params": "turbina wiatrowa 400W 48V"
+}
+
+### Test lokalny — find_item (inwerter)
+POST http://localhost:3000/api/find_item
+Content-Type: application/json
+
+{
+  "params": "inwerter DC AC 48V"
+}
+
+### Test lokalny — find_item (akumulator)
+POST http://localhost:3000/api/find_item
+Content-Type: application/json
+
+{
+  "params": "akumulator AGM 48V 150Ah"
+}
+
+### Test lokalny — find_cities_all
+POST http://localhost:3000/api/find_cities_all
+Content-Type: application/json
+
+{
+  "params": "WITR48,A94MAZ,06OTEA"
+}
+
+### Test przez tunel Azyl — find_item
+POST {{tunnel}}/api/find_item
+Content-Type: application/json
+
+{
+  "params": "turbina wiatrowa 400W 48V"
+}
